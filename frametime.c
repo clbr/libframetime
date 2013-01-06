@@ -2,11 +2,15 @@
 
 #include <stdio.h>
 #include <stdlib.h>
+#include <stdint.h>
 #include <unistd.h>
 #include <sys/time.h>
 #include <stdarg.h>
 #include <dlfcn.h>
 #include <GL/glx.h>
+
+typedef uint8_t u8;
+typedef uint32_t u32;
 
 static void (*realswap)(Display *dpy, GLXDrawable drawable) = NULL;
 
@@ -14,9 +18,24 @@ static void (*realswap)(Display *dpy, GLXDrawable drawable) = NULL;
 
 static FILE *f = NULL;
 static struct timeval oldtime;
-static unsigned char firstdone = 0;
+static u8 firstdone = 0;
 
 void glXSwapBuffers(Display * const dpy, GLXDrawable drawable) {
+
+	if (!firstdone) {
+		gettimeofday(&oldtime, NULL);
+		firstdone = 1;
+	} else {
+		struct timeval newtime;
+		gettimeofday(&newtime, NULL);
+
+		u32 usec = (newtime.tv_sec - oldtime.tv_sec) * 1000 * 1000;
+		usec += newtime.tv_usec - oldtime.tv_usec;
+
+		oldtime = newtime;
+
+		fprintf(f, "Frametime %u us\n", usec);
+	}
 
 	realswap(dpy, drawable);
 }
