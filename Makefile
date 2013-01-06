@@ -10,6 +10,7 @@ LDFLAGS += -Wl,-O1
 
 all: $(src)
 	$(CC) -o $(name) -shared $(CFLAGS) $(LDFLAGS) $(src) -ldl
+	strip --strip-unneeded $(name)
 
 clean:
 	rm -f $(name) *.o
