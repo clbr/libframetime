@@ -9,7 +9,7 @@ CFLAGS += -Wall -Wextra
 LDFLAGS += -Wl,-O1
 
 all: $(src)
-	$(CC) -o $(name) -shared $(CFLAGS) $(LDFLAGS) $(src) -ldl
+	$(CC) -o $(name) -shared $(CFLAGS) $(LDFLAGS) $(src) -ldl -fPIC
 	strip --strip-unneeded $(name)
 
 clean:
