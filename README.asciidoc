@@ -11,7 +11,11 @@ alternate file with the LIBFRAMETIME_FILE env var.
 Usage
 -----
 
+----
 LD_PRELOAD=path/to/libframetime.so dota2
+----
 
 Or with a custom output file:
+----
 LIBFRAMETIME_FILE=/tmp/dota2.frametime LD_PRELOAD=path/to/libframetime.so dota2
+----
