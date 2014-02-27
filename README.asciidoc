@@ -19,3 +19,10 @@ Or with a custom output file:
 ----
 LIBFRAMETIME_FILE=/tmp/dota2.frametime LD_PRELOAD=path/to/libframetime.so dota2
 ----
+
+The accompanied awk script can be used to calculate the usual stats:
+----
+stats.awk < libframetime.out
+Min/avg/max frametimes (us):    166 / 625.626 / 5955
+Min/avg/max FPS:                167.926 / 1598.4 / 6024.1
+----
