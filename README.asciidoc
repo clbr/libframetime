@@ -20,7 +20,7 @@ Or with a custom output file:
 LIBFRAMETIME_FILE=/tmp/dota2.frametime LD_PRELOAD=path/to/libframetime.so dota2
 ----
 
-The accompanied awk script can be used to calculate the usual stats:
+The accompanying awk script can be used to calculate the usual stats:
 ----
 $ stats.awk < libframetime.out
 ----
