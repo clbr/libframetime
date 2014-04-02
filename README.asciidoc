@@ -27,4 +27,6 @@ $ stats.awk < libframetime.out
 ----
 Min/avg/max frametimes (us):    166 / 625.626 / 5955
 Min/avg/max FPS:                167.926 / 1598.4 / 6024.1
+
+50/90/95/99 percentiles (us):   410 / 434 / 589 / 5018
 ----
