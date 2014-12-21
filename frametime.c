@@ -26,6 +26,10 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #include <dlfcn.h>
 #include <GL/glx.h>
 
+#ifndef NO_EGL
+#include <EGL/egl.h>
+#endif
+
 typedef uint8_t u8;
 typedef uint32_t u32;
 
@@ -37,7 +41,7 @@ static FILE *f = NULL;
 static struct timeval oldtime;
 static u8 firstdone = 0;
 
-void glXSwapBuffers(Display * const dpy, GLXDrawable drawable) {
+static void timing() {
 
 	if (!firstdone) {
 		gettimeofday(&oldtime, NULL);
@@ -53,6 +57,22 @@ void glXSwapBuffers(Display * const dpy, GLXDrawable drawable) {
 
 		fprintf(f, "Frametime %u us\n", usec);
 	}
+}
+
+#ifndef NO_EGL
+static EGLBoolean (*realegl)(EGLDisplay display, EGLSurface surface) = NULL;
+
+EGLBoolean eglSwapBuffers(EGLDisplay display, EGLSurface surface) {
+
+	timing();
+
+	return realegl(display, surface);
+}
+#endif
+
+void glXSwapBuffers(Display * const dpy, GLXDrawable drawable) {
+
+	timing();
 
 	realswap(dpy, drawable);
 }
@@ -87,10 +107,22 @@ static void init() {
 	dlerror();
 	realswap = dlsym(RTLD_NEXT, "glXSwapBuffers");
 
-	const char * const err = dlerror();
+	const char *err = dlerror();
 	if (err) {
 		die(PREFIX "dlsym failed: %s\n", err);
 	}
+
+#ifndef NO_EGL
+
+	dlerror();
+	realegl = dlsym(RTLD_NEXT, "eglSwapBuffers");
+
+	err = dlerror();
+	if (err) {
+		die(PREFIX "dlsym failed: %s\n", err);
+	}
+
+#endif
 }
 
 static void deinit() {

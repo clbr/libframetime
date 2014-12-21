@@ -7,6 +7,8 @@ any driver.
 By default, the timing is written into /tmp/libframetime.out, but you can specify an 
 alternate file with the LIBFRAMETIME_FILE env var.
 
+To compile without EGL support (if you don't have the EGL headers), add -DNO_EGL to
+your CFLAGS.
 
 Usage
 -----
