@@ -19,6 +19,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 #include <stdint.h>
 #include <unistd.h>
 #include <sys/time.h>
@@ -34,6 +35,7 @@ typedef uint8_t u8;
 typedef uint32_t u32;
 
 static void (*realswap)(Display *dpy, GLXDrawable drawable) = NULL;
+static void *(*realdlsym)(void *handle, const char *symbol) = NULL;
 
 #define PREFIX "libframetime: "
 
@@ -59,6 +61,40 @@ static void timing() {
 	}
 }
 
+static void die(const char fmt[], ...) {
+
+	va_list ap;
+
+	va_start(ap, fmt);
+
+	vfprintf(stderr, fmt, ap);
+
+	va_end(ap);
+	exit(1);
+}
+
+static void initdlsym() {
+
+	void *libdl = dlopen("libdl.so", RTLD_LAZY);
+	if (!libdl) die(PREFIX "Failed to open libdl.so\n");
+
+	realdlsym = dlvsym(libdl, "dlsym", "GLIBC_2.2.5");
+	if (!realdlsym) die(PREFIX "Failed loading dlsym\n");
+}
+
+void *dlsym(void *handle, const char *symbol) {
+	// High evil wrapping this function.
+	if (symbol && !strcmp(symbol, "glXSwapBuffers"))
+		return glXSwapBuffers;
+	if (symbol && !strcmp(symbol, "eglSwapBuffers"))
+		return eglSwapBuffers;
+
+	if (!realdlsym)
+		initdlsym();
+
+	return realdlsym(handle, symbol);
+}
+
 #ifndef NO_EGL
 static EGLBoolean (*realegl)(EGLDisplay display, EGLSurface surface) = NULL;
 
@@ -77,18 +113,6 @@ void glXSwapBuffers(Display * const dpy, GLXDrawable drawable) {
 	realswap(dpy, drawable);
 }
 
-static void die(const char fmt[], ...) {
-
-	va_list ap;
-
-	va_start(ap, fmt);
-
-	vfprintf(stderr, fmt, ap);
-
-	va_end(ap);
-	exit(1);
-}
-
 static void init() __attribute__((constructor));
 static void deinit() __attribute__((destructor));
 
@@ -104,8 +128,11 @@ static void init() {
 			name);
 	}
 
+	if (!realdlsym)
+		initdlsym();
+
 	dlerror();
-	realswap = dlsym(RTLD_NEXT, "glXSwapBuffers");
+	realswap = realdlsym(RTLD_NEXT, "glXSwapBuffers");
 
 	const char *err = dlerror();
 	if (err) {
@@ -115,7 +142,7 @@ static void init() {
 #ifndef NO_EGL
 
 	dlerror();
-	realegl = dlsym(RTLD_NEXT, "eglSwapBuffers");
+	realegl = realdlsym(RTLD_NEXT, "eglSwapBuffers");
 
 	err = dlerror();
 	if (err) {
