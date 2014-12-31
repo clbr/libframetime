@@ -79,6 +79,9 @@ static void initdlsym() {
 	if (!libdl) die(PREFIX "Failed to open libdl.so\n");
 
 	realdlsym = dlvsym(libdl, "dlsym", "GLIBC_2.2.5");
+	if (!realdlsym)
+		realdlsym = dlvsym(libdl, "dlsym", "GLIBC_2.0");
+
 	if (!realdlsym) die(PREFIX "Failed loading dlsym\n");
 }
 
