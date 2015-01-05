@@ -36,6 +36,7 @@ typedef uint32_t u32;
 
 static void (*realswap)(Display *dpy, GLXDrawable drawable) = NULL;
 static void *(*realdlsym)(void *handle, const char *symbol) = NULL;
+static __GLXextFuncPtr (*realprocarb)(const GLubyte *) = NULL;
 
 #define PREFIX "libframetime: "
 
@@ -91,11 +92,20 @@ void *dlsym(void *handle, const char *symbol) {
 		return glXSwapBuffers;
 	if (symbol && !strcmp(symbol, "eglSwapBuffers"))
 		return eglSwapBuffers;
+	if (symbol && !strcmp(symbol, "glXGetProcAddressARB"))
+		return glXGetProcAddressARB;
 
 	if (!realdlsym)
 		initdlsym();
 
 	return realdlsym(handle, symbol);
+}
+
+__GLXextFuncPtr glXGetProcAddressARB(const GLubyte *name) {
+	if (name && !strcmp((char *) name, "glXSwapBuffers"))
+		return (__GLXextFuncPtr) glXSwapBuffers;
+
+	return realprocarb(name);
 }
 
 #ifndef NO_EGL
@@ -142,12 +152,15 @@ static void init() {
 		die(PREFIX "dlsym failed: %s\n", err);
 	}
 
+	realprocarb = realdlsym(RTLD_NEXT, "glXGetProcAddressARB");
+
 	// If the app loads libs dynamically, the symbol may be NULL.
 	if (!realswap) {
 		void *libgl = dlopen("libGL.so", RTLD_LAZY);
 		if (!libgl)
 			die(PREFIX "dynamic libGL failed\n");
 		realswap = realdlsym(libgl, "glXSwapBuffers");
+		realprocarb = realdlsym(libgl, "glXGetProcAddressARB");
 	}
 
 #ifndef NO_EGL
