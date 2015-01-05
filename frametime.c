@@ -142,6 +142,14 @@ static void init() {
 		die(PREFIX "dlsym failed: %s\n", err);
 	}
 
+	// If the app loads libs dynamically, the symbol may be NULL.
+	if (!realswap) {
+		void *libgl = dlopen("libGL.so", RTLD_LAZY);
+		if (!libgl)
+			die(PREFIX "dynamic libGL failed\n");
+		realswap = realdlsym(libgl, "glXSwapBuffers");
+	}
+
 #ifndef NO_EGL
 
 	dlerror();
@@ -152,6 +160,13 @@ static void init() {
 		die(PREFIX "dlsym failed: %s\n", err);
 	}
 
+	// If the app loads libs dynamically, the symbol may be NULL.
+	if (!realegl) {
+		void *libegl = dlopen("libEGL.so", RTLD_LAZY);
+		if (!libegl)
+			die(PREFIX "dynamic libEGL failed\n");
+		realegl = realdlsym(libegl, "eglSwapBuffers");
+	}
 #endif
 }
 
