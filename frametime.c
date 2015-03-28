@@ -90,8 +90,10 @@ void *dlsym(void *handle, const char *symbol) {
 	// High evil wrapping this function.
 	if (symbol && !strcmp(symbol, "glXSwapBuffers"))
 		return glXSwapBuffers;
+#ifndef NO_EGL
 	if (symbol && !strcmp(symbol, "eglSwapBuffers"))
 		return eglSwapBuffers;
+#endif
 	if (symbol && !strcmp(symbol, "glXGetProcAddressARB"))
 		return glXGetProcAddressARB;
 
