@@ -59,6 +59,7 @@ static void timing() {
 		oldtime = newtime;
 
 		fprintf(f, "Frametime %u us\n", usec);
+		fflush(f);
 	}
 }
 
