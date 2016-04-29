@@ -10,6 +10,17 @@ alternate file with the LIBFRAMETIME_FILE env var.
 To compile without EGL support (if you don't have the EGL headers), add -DNO_EGL to
 your CFLAGS.
 
+
+Required Packages
+-----------------
+
+Linux (For example, Debian):
+
+ * gcc (for base compiling)
+ * mesa-common-dev (glx.h)
+ * libegl1-mesa-dev (egl.h)
+
+
 Usage
 -----
 
