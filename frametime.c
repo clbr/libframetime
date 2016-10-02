@@ -166,6 +166,8 @@ static void init() {
 		if (!libgl)
 			die(PREFIX "dynamic libGL failed\n");
 		real_glXGetProcAddressARB = real_dlsym(libgl, "glXGetProcAddressARB");
+		if (!real_glXGetProcAddressARB)
+			die(PREFIX "Failed to find glXGetProcAddressARB in libGL.so\n");
 	}
 
 	dlerror();
@@ -181,6 +183,8 @@ static void init() {
 		if (!libgl)
 			die(PREFIX "dynamic libGL failed\n");
 		real_glXSwapBuffers = real_dlsym(libgl, "glXSwapBuffers");
+		if (!real_glXSwapBuffers)
+			die(PREFIX "Failed to find glXSwapBuffers in libGL.so\n");
 	}
 
 #ifndef NO_EGL
@@ -197,6 +201,8 @@ static void init() {
 		if (!libegl)
 			die(PREFIX "dynamic libEGL failed\n");
 		real_eglSwapBuffers = real_dlsym(libegl, "eglSwapBuffers");
+		if (!real_eglSwapBuffers)
+			die(PREFIX "Failed to find eglSwapBuffers in libEGL.so\n");
 	}
 #endif
 }
