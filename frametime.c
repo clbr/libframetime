@@ -24,9 +24,9 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #include <unistd.h>
 #include <sys/time.h>
 #include <stdarg.h>
+
 #include <dlfcn.h>
 #include <GL/glx.h>
-
 #ifndef NO_EGL
 #include <EGL/egl.h>
 #endif
@@ -34,9 +34,12 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 typedef uint8_t u8;
 typedef uint32_t u32;
 
-static void (*real_glXSwapBuffers)(Display *dpy, GLXDrawable drawable) = NULL;
 static void *(*real_dlsym)(void *handle, const char *symbol) = NULL;
 static __GLXextFuncPtr (*real_glXGetProcAddressARB)(const GLubyte *) = NULL;
+static void (*real_glXSwapBuffers)(Display *dpy, GLXDrawable drawable) = NULL;
+#ifndef NO_EGL
+static EGLBoolean (*real_eglSwapBuffers)(EGLDisplay display, EGLSurface surface) = NULL;
+#endif
 
 #define PREFIX "libframetime: "
 
@@ -89,14 +92,15 @@ static void init_dlsym() {
 
 void *dlsym(void *handle, const char *symbol) {
 	// High evil wrapping this function.
+
+	if (symbol && !strcmp(symbol, "glXGetProcAddressARB"))
+		return glXGetProcAddressARB;
 	if (symbol && !strcmp(symbol, "glXSwapBuffers"))
 		return glXSwapBuffers;
 #ifndef NO_EGL
 	if (symbol && !strcmp(symbol, "eglSwapBuffers"))
 		return eglSwapBuffers;
 #endif
-	if (symbol && !strcmp(symbol, "glXGetProcAddressARB"))
-		return glXGetProcAddressARB;
 
 	if (!real_dlsym)
 		init_dlsym();
@@ -105,22 +109,12 @@ void *dlsym(void *handle, const char *symbol) {
 }
 
 __GLXextFuncPtr glXGetProcAddressARB(const GLubyte *name) {
+
 	if (name && !strcmp((char *) name, "glXSwapBuffers"))
 		return (__GLXextFuncPtr) glXSwapBuffers;
 
 	return real_glXGetProcAddressARB(name);
 }
-
-#ifndef NO_EGL
-static EGLBoolean (*real_eglSwapBuffers)(EGLDisplay display, EGLSurface surface) = NULL;
-
-EGLBoolean eglSwapBuffers(EGLDisplay display, EGLSurface surface) {
-
-	timing();
-
-	return real_eglSwapBuffers(display, surface);
-}
-#endif
 
 void glXSwapBuffers(Display * const dpy, GLXDrawable drawable) {
 
@@ -128,6 +122,15 @@ void glXSwapBuffers(Display * const dpy, GLXDrawable drawable) {
 
 	real_glXSwapBuffers(dpy, drawable);
 }
+
+#ifndef NO_EGL
+EGLBoolean eglSwapBuffers(EGLDisplay display, EGLSurface surface) {
+
+	timing();
+
+	return real_eglSwapBuffers(display, surface);
+}
+#endif
 
 static void init() __attribute__((constructor));
 static void deinit() __attribute__((destructor));
@@ -139,10 +142,8 @@ static void init() {
 
 	f = fopen(name, "w");
 
-	if (!f) {
-		die(PREFIX "Failed to open %s for writing\n",
-			name);
-	}
+	if (!f)
+		die(PREFIX "Failed to open %s for writing\n", name);
 
 	if (!real_dlsym)
 		init_dlsym();
@@ -151,9 +152,8 @@ static void init() {
 	real_glXSwapBuffers = real_dlsym(RTLD_NEXT, "glXSwapBuffers");
 
 	const char *err = dlerror();
-	if (err) {
+	if (err)
 		die(PREFIX "dlsym failed: %s\n", err);
-	}
 
 	real_glXGetProcAddressARB = real_dlsym(RTLD_NEXT, "glXGetProcAddressARB");
 
@@ -167,14 +167,12 @@ static void init() {
 	}
 
 #ifndef NO_EGL
-
 	dlerror();
 	real_eglSwapBuffers = real_dlsym(RTLD_NEXT, "eglSwapBuffers");
 
 	err = dlerror();
-	if (err) {
+	if (err)
 		die(PREFIX "dlsym failed: %s\n", err);
-	}
 
 	// If the app loads libs dynamically, the symbol may be NULL.
 	if (!real_eglSwapBuffers) {
