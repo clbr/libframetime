@@ -154,13 +154,26 @@ static void init() {
 		init_dlsym();
 
 	dlerror();
-	real_glXSwapBuffers = real_dlsym(RTLD_NEXT, "glXSwapBuffers");
+	real_glXGetProcAddressARB = real_dlsym(RTLD_NEXT, "glXGetProcAddressARB");
 
 	const char *err = dlerror();
 	if (err)
 		die(PREFIX "dlsym failed: %s\n", err);
 
-	real_glXGetProcAddressARB = real_dlsym(RTLD_NEXT, "glXGetProcAddressARB");
+	// If the app loads libs dynamically, the symbol may be NULL.
+	if (!real_glXGetProcAddressARB) {
+		void *libgl = dlopen("libGL.so", RTLD_LAZY);
+		if (!libgl)
+			die(PREFIX "dynamic libGL failed\n");
+		real_glXGetProcAddressARB = real_dlsym(libgl, "glXGetProcAddressARB");
+	}
+
+	dlerror();
+	real_glXSwapBuffers = real_dlsym(RTLD_NEXT, "glXSwapBuffers");
+
+	err = dlerror();
+	if (err)
+		die(PREFIX "dlsym failed: %s\n", err);
 
 	// If the app loads libs dynamically, the symbol may be NULL.
 	if (!real_glXSwapBuffers) {
@@ -168,7 +181,6 @@ static void init() {
 		if (!libgl)
 			die(PREFIX "dynamic libGL failed\n");
 		real_glXSwapBuffers = real_dlsym(libgl, "glXSwapBuffers");
-		real_glXGetProcAddressARB = real_dlsym(libgl, "glXGetProcAddressARB");
 	}
 
 #ifndef NO_EGL
