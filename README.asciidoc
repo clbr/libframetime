@@ -24,8 +24,14 @@ Linux (For example, Debian):
 Usage
 -----
 
+On 32-bit systems:
 ----
-LD_PRELOAD=path/to/libframetime.so dota2
+LD_PRELOAD=path/to/libframetime32.so dota2
+----
+
+On 64-bit systems add multiple libs to preload and let the application pick one that works out for its compiled architecture:
+----
+LD_PRELOAD="path/to/libframetime64.so:path/to/libframetime32.so" dota2
 ----
 
 For Steam Users,choose launch options for a given title. Example:
@@ -36,7 +42,7 @@ LD_PRELOAD=path/to/libframetime.so %command%
 
 Or with a custom output file:
 ----
-LIBFRAMETIME_FILE=/tmp/dota2.frametime LD_PRELOAD=path/to/libframetime.so dota2
+LIBFRAMETIME_FILE=/tmp/dota2.frametime LD_PRELOAD=path/to/libframetime<arch>.so dota2
 ----
 
 The accompanying awk script can be used to calculate the usual stats:
