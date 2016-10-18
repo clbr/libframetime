@@ -93,14 +93,19 @@ static void init_dlsym() {
 void *dlsym(void *handle, const char *symbol) {
 	// High evil wrapping this function.
 
-	if (symbol && !strcmp(symbol, "glXGetProcAddressARB"))
-		return glXGetProcAddressARB;
-	if (symbol && !strcmp(symbol, "glXSwapBuffers"))
-		return glXSwapBuffers;
-#ifndef NO_EGL
-	if (symbol && !strcmp(symbol, "eglSwapBuffers"))
-		return eglSwapBuffers;
-#endif
+#	define RETURN_ON_MATCH(function_name) \
+	do { \
+		if (symbol && !strcmp(symbol, #function_name)) \
+			return function_name; \
+	} while (0)
+
+	RETURN_ON_MATCH(glXGetProcAddressARB);
+	RETURN_ON_MATCH(glXSwapBuffers);
+#	ifndef NO_EGL
+	RETURN_ON_MATCH(eglSwapBuffers);
+#	endif
+
+#	undef RETURN_ON_MATCH
 
 	if (!real_dlsym)
 		init_dlsym();
