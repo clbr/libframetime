@@ -93,14 +93,19 @@ static void init_dlsym() {
 void *dlsym(void *handle, const char *symbol) {
 	// High evil wrapping this function.
 
-	if (symbol && !strcmp(symbol, "glXGetProcAddressARB"))
-		return glXGetProcAddressARB;
-	if (symbol && !strcmp(symbol, "glXSwapBuffers"))
-		return glXSwapBuffers;
-#ifndef NO_EGL
-	if (symbol && !strcmp(symbol, "eglSwapBuffers"))
-		return eglSwapBuffers;
-#endif
+#	define RETURN_ON_MATCH(function_name) \
+	do { \
+		if (symbol && !strcmp(symbol, #function_name)) \
+			return function_name; \
+	} while (0)
+
+	RETURN_ON_MATCH(glXGetProcAddressARB);
+	RETURN_ON_MATCH(glXSwapBuffers);
+#	ifndef NO_EGL
+	RETURN_ON_MATCH(eglSwapBuffers);
+#	endif
+
+#	undef RETURN_ON_MATCH
 
 	if (!real_dlsym)
 		init_dlsym();
@@ -132,6 +137,36 @@ EGLBoolean eglSwapBuffers(EGLDisplay display, EGLSurface surface) {
 }
 #endif
 
+static void *load_func_from_next(const char * const function_name) {
+
+	dlerror();
+	void * const real_function = real_dlsym(RTLD_NEXT, function_name);
+
+	const char * const err = dlerror();
+	if (err)
+		die(PREFIX "dlsym failed: %s\n", err);
+
+	return real_function;
+}
+
+static void *load_func_from_lib(const char * const function_name, const char * const library_name) {
+
+	// If possible, load from the next object such that we don't have to load the lib.
+	void *real_function = load_func_from_next(function_name);
+
+	if (!real_function) {
+		void * const lib = dlopen(library_name, RTLD_LAZY);
+		if (!lib)
+			die(PREFIX "Failed to open %s\n", library_name);
+
+		real_function = real_dlsym(lib, function_name);
+		if (!real_function)
+			die(PREFIX "Failed to find %s in %s\n", function_name, library_name);
+	}
+
+	return real_function;
+}
+
 static void init() __attribute__((constructor));
 static void deinit() __attribute__((destructor));
 
@@ -148,40 +183,11 @@ static void init() {
 	if (!real_dlsym)
 		init_dlsym();
 
-	dlerror();
-	real_glXSwapBuffers = real_dlsym(RTLD_NEXT, "glXSwapBuffers");
-
-	const char *err = dlerror();
-	if (err)
-		die(PREFIX "dlsym failed: %s\n", err);
-
-	real_glXGetProcAddressARB = real_dlsym(RTLD_NEXT, "glXGetProcAddressARB");
-
-	// If the app loads libs dynamically, the symbol may be NULL.
-	if (!real_glXSwapBuffers) {
-		void *libgl = dlopen("libGL.so", RTLD_LAZY);
-		if (!libgl)
-			die(PREFIX "dynamic libGL failed\n");
-		real_glXSwapBuffers = real_dlsym(libgl, "glXSwapBuffers");
-		real_glXGetProcAddressARB = real_dlsym(libgl, "glXGetProcAddressARB");
-	}
-
-#ifndef NO_EGL
-	dlerror();
-	real_eglSwapBuffers = real_dlsym(RTLD_NEXT, "eglSwapBuffers");
-
-	err = dlerror();
-	if (err)
-		die(PREFIX "dlsym failed: %s\n", err);
-
-	// If the app loads libs dynamically, the symbol may be NULL.
-	if (!real_eglSwapBuffers) {
-		void *libegl = dlopen("libEGL.so", RTLD_LAZY);
-		if (!libegl)
-			die(PREFIX "dynamic libEGL failed\n");
-		real_eglSwapBuffers = real_dlsym(libegl, "eglSwapBuffers");
-	}
-#endif
+	real_glXGetProcAddressARB = load_func_from_lib("glXGetProcAddressARB", "libGL.so");
+	real_glXSwapBuffers = load_func_from_lib("glXSwapBuffers", "libGL.so");
+#	ifndef NO_EGL
+	real_eglSwapBuffers = load_func_from_lib("eglSwapBuffers", "libEGL.so");
+#	endif
 }
 
 static void deinit() {
