@@ -49,3 +49,46 @@ Min/avg/max FPS:                167.926 / 1598.4 / 6024.1
 
 50/90/95/99 percentiles (us):   410 / 434 / 589 / 5018
 ----
+
+
+Accuracy
+--------
+
+When available, https://www.opengl.org/registry/specs/ARB/timer_query.txt[OpenGL timer query objects]
+are used to provide more accurate results:
+for each frame, the GPU timestamp -- at the moment when all GPU commands are finished --
+is used to calculate the frametime.
+
+When not available, the CPU timestamp -- just before the asynchronous swap buffers function is called --
+is used to calculate the frametime.
+To force using CPU timestamps, set the environment variable `LIBFRAMETIME_TIMERQUERIES_DISABLED=1`.
+
+The improvement of using GPU timestamps over CPU timestamps is quite dramatic,
+the former resembles the visual experience much more.
+Now the frametimes can be used to perform variance analysis more reliably.
+For reference, below figure compares both methods in a single run of the Unigine Valley benchmark.
+
+image::https://cdn.pbrd.co/images/rjm9xX9Bm.png[Figure which shows the asynchronous nature of swap buffers when using CPU timestamps results in a lot of jitter compared to using GPU timestamps]
+
+*Warning*: some driver implementations have a bug where the drift of the GPU timer is significant (up to (-)40ms per second).
+Currently, Intel Broadwell and Skylake on Mesa are known to be affected by this problem.
+Run the `arb_timer_query-timestamp-get` test of https://piglit.freedesktop.org/[the piglit framework]
+to see whether you're affected.
+Alternatively, just perform a run of a benchmark with timer queries enabled vs disabled,
+and compare avg frametimes to see whether there's a significant difference.
+If you're affected, but the drift is consistent between runs,
+you can still use the results after having applied following scaling factor
+(positive drift means GPU timer is slower than CPU timer; CPU timer is considered correct):
+----
+corrected_frametime = reported_frametime * 1000000000ns / (drift + 1000000000ns)
+----
+
+The use of timer queries should not degrade performance of the to-be-benchmarked application.
+If you think it does, set the environment variable `LIBFRAMETIME_TIMERQUERIES_DEBUG=1`
+and verify the following is not printed to stderr during the benchmark:
+----
+libframetime: Warning: timer query result not yet available
+----
+If it is printed, please report this as a GitHub issue on this project page,
+in that case it would also be interesting to run
+https://github.com/Eliasvan/find-min-required-number-of-timer-queries[find-min-required-number-of-timer-queries].
